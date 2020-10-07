@@ -62,7 +62,7 @@ uint8_t magic;
 uint16_t r,s;
 };
 
-uint8_t UART1_rxBuffer[sizeof(struct Paket)+1] = {0};
+uint8_t UART1_rxBuffer[sizeof(struct Paket)];
 uint8_t LfCr[4]={0,0,10,13};
 struct Paket* strDat;
 struct Paket sendDat = {0xAA,0,0};
@@ -79,7 +79,9 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 	//HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, 1);
-
+for(int i = 0; i < (sizeof(struct Paket)); i++){
+	UART1_rxBuffer[i] = 8;
+}
 
   /* USER CODE END 1 */
 

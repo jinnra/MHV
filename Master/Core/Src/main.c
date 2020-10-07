@@ -62,7 +62,7 @@ struct Paket{
   uint16_t r,s;
 };
 
-uint8_t UART1_rxBuffer[sizeof(struct Paket)+1] = {0};
+uint8_t UART1_rxBuffer[sizeof(struct Paket)] = {0};
 int sendF = 0;
 /* USER CODE END 0 */
 
@@ -73,11 +73,12 @@ int sendF = 0;
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	/*uint8_t msb = foo >> 8;
-	uint8_t lsb = foo & 0xff;
-	uint8_t UART1_txBuffer[5] = {65,66,67,68,69};*/
+
 	struct Paket pkt = {0xAA,300, 1};
 	uint8_t* x = (uint8_t*)&pkt;
+	for(int i = 0; i < (sizeof(struct Paket)); i++){
+		UART1_rxBuffer[i] = 5;
+	}
 
   /* USER CODE END 1 */
 
@@ -108,20 +109,19 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  /* USER CODE END WHILE */
-	  		if((HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14)==0)&&(sendF == 0)){
-	  			sendF = 1;
-	  			HAL_UART_Transmit(&huart1, x, sizeof(struct Paket), 100);
-	  			//HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-	  			HAL_Delay(100);
-	  			}
-	  			if((HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14)==1)&&(sendF == 1)){
-	  			sendF = 0;
-	  			HAL_Delay(100);
-	  			}
+    /* USER CODE END WHILE */
+	  if((HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14)==0)&&(sendF == 0)){
+	  	  			sendF = 1;
+	  	  			HAL_UART_Transmit(&huart1, x, sizeof(struct Paket), 100);
+	  	  			//HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+	  	  			HAL_Delay(100);
+	  	  			}
+	  	  			if((HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14)==1)&&(sendF == 1)){
+	  	  			sendF = 0;
+	  	  			HAL_Delay(100);
+	  	  			}
 
-
-	      /* USER CODE BEGIN 3 */
+    /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
@@ -234,18 +234,6 @@ static void MX_GPIO_Init(void)
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-	/*strDat = (struct Paket*)&UART1_rxBuffer[0];
-	if((address==0)&&(strDat->magic==0xAA)){
-		address = strDat->r;
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
-	}
-	LfCr[0]= (uint16_t)strDat->r;
-	LfCr[1]= (uint16_t)strDat->s;
-	CDC_Transmit_FS(LfCr,sizeof(LfCr));
-	/*if(recv == 0){
-	recv = (int)((UART1_rxBuffer[1] << 8) | UART1_rxBuffer[2] );
-
-	} */
     HAL_UART_Receive_IT(&huart1, UART1_rxBuffer, sizeof(struct Paket));
 
 
