@@ -9,10 +9,10 @@
   * <h2><center>&copy; Copyright (c) 2020 STMicroelectronics.
   * All rights reserved.</center></h2>
   *
-  * This software component is licensed by ST under Ultimate Liberty license
-  * SLA0044, the "License"; You may not use this file except in compliance with
-  * the License. You may obtain a copy of the License at:
-  *                             www.st.com/SLA0044
+  * This software component is licensed by ST under BSD 3-Clause license,
+  * the "License"; You may not use this file except in compliance with the
+  * License. You may obtain a copy of the License at:
+  *                        opensource.org/licenses/BSD-3-Clause
   *
   ******************************************************************************
   */
@@ -57,7 +57,18 @@ static void MX_USART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+struct Paket{
+uint8_t magic;
+uint16_t r,s;
+};
 
+uint8_t UART1_rxBuffer[sizeof(struct Paket)+1] = {0};
+uint8_t LfCr[4]={0,0,10,13};
+struct Paket* strDat;
+struct Paket sendDat = {0xAA,0,0};
+volatile uint16_t address = 0;
+//Flags
+int sendAddrF = 0;
 /* USER CODE END 0 */
 
 /**
@@ -67,6 +78,8 @@ static void MX_USART1_UART_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+	//HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, 1);
+
 
   /* USER CODE END 1 */
 
@@ -91,6 +104,8 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
+  HAL_UART_Receive_IT (&huart1, UART1_rxBuffer, sizeof(struct Paket));
+
 
   /* USER CODE END 2 */
 
@@ -99,7 +114,16 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+	 if((sendAddrF==0)&&(address>100)){
+		 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, 1);
+		 sendDat.r = address+1;
+		 sendDat.s = address;
+		 uint8_t* x = (uint8_t*)&sendDat;
+		 HAL_Delay(200);
+		 HAL_UART_Transmit(&huart1, x, sizeof(struct Paket), 100);
+		 sendAddrF = 1;
 
+	  }
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -231,6 +255,25 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+	strDat = (struct Paket*)&UART1_rxBuffer[0];
+	if((address==0)&&(strDat->magic==0xAA)){
+		address = strDat->r;
+		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
+	}
+	LfCr[0]= (uint16_t)strDat->r;
+	LfCr[1]= (uint16_t)strDat->s;
+	CDC_Transmit_FS(LfCr,sizeof(LfCr));
+	/*if(recv == 0){
+	recv = (int)((UART1_rxBuffer[1] << 8) | UART1_rxBuffer[2] );
+
+	} */
+    HAL_UART_Receive_IT(&huart1, UART1_rxBuffer, sizeof(struct Paket));
+
+
+}
 
 /* USER CODE END 4 */
 
