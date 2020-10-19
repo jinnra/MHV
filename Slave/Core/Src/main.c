@@ -65,7 +65,11 @@ uint8_t preamble;
 uint16_t receiverAdress,senderAdress;
 };
 
+<<<<<<< HEAD
 uint8_t UART1_rxBuffer[sizeof(struct Packet)+1] = {0};
+=======
+uint8_t UART1_rxBuffer[sizeof(struct Paket)];
+>>>>>>> branch 'master' of https://github.com/jinnra/MHV.git
 uint8_t LfCr[4]={0,0,10,13};
 struct Packet* strDat;
 struct Packet sendDat = {0xAA,0,0};
@@ -81,6 +85,13 @@ int sendAddrF = 0;
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+<<<<<<< HEAD
+=======
+	//HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, 1);
+for(int i = 0; i < (sizeof(struct Paket)); i++){
+	UART1_rxBuffer[i] = 8;
+}
+>>>>>>> branch 'master' of https://github.com/jinnra/MHV.git
 
   /* USER CODE END 1 */
 
