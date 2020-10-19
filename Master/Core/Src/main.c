@@ -40,6 +40,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+CRC_HandleTypeDef hcrc;
+
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
@@ -50,6 +52,7 @@ UART_HandleTypeDef huart1;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_CRC_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -57,12 +60,12 @@ static void MX_USART1_UART_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-struct Paket{
-  uint8_t magic;
-  uint16_t r,s;
+struct Packet{
+uint8_t preamble;
+uint16_t receiverAdress,senderAdress;
 };
 
-uint8_t UART1_rxBuffer[sizeof(struct Paket)+1] = {0};
+uint8_t UART1_rxBuffer[sizeof(struct Packet)+1] = {0};
 int sendF = 0;
 /* USER CODE END 0 */
 
@@ -76,7 +79,7 @@ int main(void)
 	/*uint8_t msb = foo >> 8;
 	uint8_t lsb = foo & 0xff;
 	uint8_t UART1_txBuffer[5] = {65,66,67,68,69};*/
-	struct Paket pkt = {0xAA,300, 1};
+	struct Packet pkt = {0xAA,300, 1};
 	uint8_t* x = (uint8_t*)&pkt;
 
   /* USER CODE END 1 */
@@ -100,8 +103,9 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART1_UART_Init();
+  MX_CRC_Init();
   /* USER CODE BEGIN 2 */
-  HAL_UART_Receive_IT (&huart1, UART1_rxBuffer, sizeof(struct Paket));
+  HAL_UART_Receive_IT (&huart1, UART1_rxBuffer, sizeof(struct Packet));
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -109,19 +113,19 @@ int main(void)
   while (1)
   {
 	  /* USER CODE END WHILE */
-	  		if((HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14)==0)&&(sendF == 0)){
-	  			sendF = 1;
-	  			HAL_UART_Transmit(&huart1, x, sizeof(struct Paket), 100);
-	  			//HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-	  			HAL_Delay(100);
-	  			}
-	  			if((HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14)==1)&&(sendF == 1)){
-	  			sendF = 0;
-	  			HAL_Delay(100);
-	  			}
+	  	  		if((HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14)==0)&&(sendF == 0)){
+	  	  			sendF = 1;
+	  	  			HAL_UART_Transmit(&huart1, x, sizeof(struct Packet), 100);
+	  	  			//HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+	  	  			HAL_Delay(100);
+	  	  			}
+	  	  			if((HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14)==1)&&(sendF == 1)){
+	  	  			sendF = 0;
+	  	  			HAL_Delay(100);
+	  	  			}
 
 
-	      /* USER CODE BEGIN 3 */
+	  	      /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
@@ -162,6 +166,32 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+}
+
+/**
+  * @brief CRC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_CRC_Init(void)
+{
+
+  /* USER CODE BEGIN CRC_Init 0 */
+
+  /* USER CODE END CRC_Init 0 */
+
+  /* USER CODE BEGIN CRC_Init 1 */
+
+  /* USER CODE END CRC_Init 1 */
+  hcrc.Instance = CRC;
+  if (HAL_CRC_Init(&hcrc) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN CRC_Init 2 */
+
+  /* USER CODE END CRC_Init 2 */
+
 }
 
 /**
@@ -234,19 +264,7 @@ static void MX_GPIO_Init(void)
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-	/*strDat = (struct Paket*)&UART1_rxBuffer[0];
-	if((address==0)&&(strDat->magic==0xAA)){
-		address = strDat->r;
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
-	}
-	LfCr[0]= (uint16_t)strDat->r;
-	LfCr[1]= (uint16_t)strDat->s;
-	CDC_Transmit_FS(LfCr,sizeof(LfCr));
-	/*if(recv == 0){
-	recv = (int)((UART1_rxBuffer[1] << 8) | UART1_rxBuffer[2] );
-
-	} */
-    HAL_UART_Receive_IT(&huart1, UART1_rxBuffer, sizeof(struct Paket));
+    HAL_UART_Receive_IT(&huart1, UART1_rxBuffer, sizeof(struct Packet));
 
 
 }
