@@ -1,10 +1,5 @@
 stm32f1xx_hal_msp.c:64:6:HAL_MspInit	24	static
-<<<<<<< HEAD
 stm32f1xx_hal_msp.c:90:6:HAL_CRC_MspInit	24	static
 stm32f1xx_hal_msp.c:112:6:HAL_CRC_MspDeInit	16	static
 stm32f1xx_hal_msp.c:134:6:HAL_UART_MspInit	40	static
-stm32f1xx_hal_msp.c:173:6:HAL_UART_MspDeInit	16	static
-=======
-stm32f1xx_hal_msp.c:90:6:HAL_UART_MspInit	40	static
-stm32f1xx_hal_msp.c:132:6:HAL_UART_MspDeInit	16	static
->>>>>>> branch 'master' of https://github.com/jinnra/MHV.git
+stm32f1xx_hal_msp.c:176:6:HAL_UART_MspDeInit	16	static
