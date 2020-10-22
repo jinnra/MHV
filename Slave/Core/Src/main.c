@@ -28,7 +28,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+enum States{INITIAL, IDLE, ARMED};
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -46,7 +46,7 @@ CRC_HandleTypeDef hcrc;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-
+int state = INITIAL;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -55,21 +55,26 @@ static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_CRC_Init(void);
 /* USER CODE BEGIN PFP */
-
+void sendPacket();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 struct Packet{
 uint8_t preamble;
-uint16_t receiverAdress,senderAdress;
+uint16_t receiverAdress,senderAdress, payload;
+};
+struct CrcPacket{
+	struct Packet data;
+	uint32_t crcVal;
 };
 
-uint8_t UART1_rxBuffer[sizeof(struct Packet)+1] = {0};
+uint8_t UART1_rxBuffer[sizeof(struct CrcPacket)] = {0};
 uint8_t LfCr[4]={0,0,10,13};
-struct Packet* strDat;
-struct Packet sendDat = {0xAA,0,0};
+struct CrcPacket* strDat;
+struct Packet sendDat = {0xAA,0,0,322};
 volatile uint16_t address = 0;
+volatile uint32_t crcAct = 0;
 //Flags
 int sendAddrF = 0;
 /* USER CODE END 0 */
@@ -81,7 +86,9 @@ int sendAddrF = 0;
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+for(int i = 0; i <(sizeof(struct CrcPacket)); i++){
+	UART1_rxBuffer[i] = 222;
+}
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -106,7 +113,10 @@ int main(void)
   MX_USB_DEVICE_Init();
   MX_CRC_Init();
   /* USER CODE BEGIN 2 */
-  HAL_UART_Receive_IT (&huart1, UART1_rxBuffer, sizeof(struct Packet));
+  HAL_Delay(300);
+  HAL_HalfDuplex_Init(&huart1);
+  HAL_HalfDuplex_EnableReceiver(&huart1);
+  HAL_UART_Receive_IT (&huart1, UART1_rxBuffer, sizeof(struct CrcPacket));
 
 
   /* USER CODE END 2 */
@@ -115,17 +125,27 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  switch(state){
+	  case INITIAL:
+		  if((sendAddrF==0)&&(address>100)){
+		  	 		 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, 1);
+		  	 		 sendDat.receiverAdress = address+1;
+		  	 		 sendDat.senderAdress = address;
+		  	 		 HAL_Delay(200);
+		  	 		 sendPacket(sendDat);
+		  	 		 state = IDLE;
+		  	 		 sendAddrF = 1;
+		  	 	  }
+		  break;
+	  case IDLE:
+		  break;
+	  case ARMED:
+	  	  break;
+	  default: break;
+	  }
+	 // HAL_UART_Receive(&huart1, UART1_rxBuffer, sizeof(struct CrcPacket)*3, -1);
 	  /* USER CODE END WHILE */
-	 	 if((sendAddrF==0)&&(address>100)){
-	 		 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, 1);
-	 		 sendDat.receiverAdress = address+1;
-	 		 sendDat.senderAdress = address;
-	 		 uint8_t* x = (uint8_t*)&sendDat;
-	 		 HAL_Delay(200);
-	 		 HAL_UART_Transmit(&huart1, x, sizeof(struct Packet), 100);
-	 		 sendAddrF = 1;
 
-	 	  }
 	 /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -286,19 +306,27 @@ static void MX_GPIO_Init(void)
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-	strDat = (struct Packet*)&UART1_rxBuffer[0];
-	if((address==0)&&(strDat->preamble==0xAA)){
-		address = strDat->receiverAdress;
+	strDat = (struct CrcPacket*)&UART1_rxBuffer[0];
+	if((address==0)&&(strDat->data.preamble==0xAA)){
+		address = strDat->data.receiverAdress;
+
+		crcAct = HAL_CRC_Calculate(&hcrc, (uint32_t*)&strDat->data, 2);
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
 	}
-	LfCr[0]= (uint16_t)strDat->receiverAdress;
+	/*LfCr[0]= (uint16_t)strDat->receiverAdress;
 	LfCr[1]= (uint16_t)strDat->senderAdress;
-	CDC_Transmit_FS(LfCr,sizeof(LfCr));
-    HAL_UART_Receive_IT(&huart1, UART1_rxBuffer, sizeof(struct Packet));
+	CDC_Transmit_FS(LfCr,sizeof(LfCr)); */
+    HAL_UART_Receive_IT(&huart1, UART1_rxBuffer, sizeof(struct CrcPacket));
 
 
 }
+void sendPacket(struct Packet p){
+	struct CrcPacket msg = {p, HAL_CRC_Calculate(&hcrc, (uint32_t*) &p, sizeof(p)/4)};
+	HAL_HalfDuplex_EnableTransmitter(&huart1);
+	HAL_UART_Transmit(&huart1,(uint8_t*) &msg , sizeof(msg), 100);
+	HAL_HalfDuplex_EnableReceiver(&huart1);
 
+}
 /* USER CODE END 4 */
 
 /**

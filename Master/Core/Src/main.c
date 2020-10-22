@@ -62,10 +62,14 @@ static void MX_CRC_Init(void);
 
 struct Packet{
 uint8_t preamble;
-uint16_t receiverAdress,senderAdress;
+uint16_t receiverAdress,senderAdress, payload;
+};
+struct CrcPacket{
+	struct Packet data;
+	uint32_t crcVal;
 };
 
-uint8_t UART1_rxBuffer[sizeof(struct Packet)+1] = {0};
+uint8_t UART1_rxBuffer[sizeof(struct CrcPacket)] = {0};
 int sendF = 0;
 /* USER CODE END 0 */
 
@@ -79,9 +83,10 @@ int main(void)
 	/*uint8_t msb = foo >> 8;
 	uint8_t lsb = foo & 0xff;
 	uint8_t UART1_txBuffer[5] = {65,66,67,68,69};*/
-	struct Packet pkt = {0xAA,300, 1};
+	struct Packet dt = {0xAA,300, 1, 322};
+	struct CrcPacket pkt = {dt, 123456};
+	uint32_t* c = (uint32_t*)&dt;
 	uint8_t* x = (uint8_t*)&pkt;
-
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -105,6 +110,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_CRC_Init();
   /* USER CODE BEGIN 2 */
+  HAL_CRC_Init(&hcrc);
   HAL_UART_Receive_IT (&huart1, UART1_rxBuffer, sizeof(struct Packet));
   /* USER CODE END 2 */
 
@@ -113,16 +119,25 @@ int main(void)
   while (1)
   {
 	  /* USER CODE END WHILE */
-	  	  		if((HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14)==0)&&(sendF == 0)){
+	  HAL_Delay(2000);
+	  pkt.crcVal = HAL_CRC_Calculate(&hcrc, c, 2);
+	  HAL_UART_Transmit(&huart1, x, sizeof(pkt) , 100);
+	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+
+	  	  		/*if((HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14)==0)&&(sendF == 0)){
 	  	  			sendF = 1;
-	  	  			HAL_UART_Transmit(&huart1, x, sizeof(struct Packet), 100);
+
+
+	  	  			sizes = sizeof(struct CrcPacket);
+	  	  			size = sizeof(pkt);
+	  	  			HAL_UART_Transmit(&huart1, &sendchar, 1 , 100);
 	  	  			//HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 	  	  			HAL_Delay(100);
 	  	  			}
 	  	  			if((HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14)==1)&&(sendF == 1)){
 	  	  			sendF = 0;
 	  	  			HAL_Delay(100);
-	  	  			}
+	  	  			}*/
 
 
 	  	      /* USER CODE BEGIN 3 */
@@ -264,7 +279,7 @@ static void MX_GPIO_Init(void)
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-    HAL_UART_Receive_IT(&huart1, UART1_rxBuffer, sizeof(struct Packet));
+    HAL_UART_Receive_IT(&huart1, UART1_rxBuffer, sizeof(struct CrcPacket));
 
 
 }
