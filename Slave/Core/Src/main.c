@@ -56,6 +56,7 @@ static void MX_USART1_UART_Init(void);
 static void MX_CRC_Init(void);
 /* USER CODE BEGIN PFP */
 void sendPacket();
+int crcCheck();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -71,12 +72,14 @@ struct CrcPacket{
 
 uint8_t UART1_rxBuffer[sizeof(struct CrcPacket)] = {0};
 uint8_t LfCr[4]={0,0,10,13};
-struct CrcPacket* strDat;
+struct CrcPacket* recvPacket;
 struct Packet sendDat = {0xAA,0,0,322};
 volatile uint16_t address = 0;
 volatile uint32_t crcAct = 0;
+volatile int crcChecks = 0;
 //Flags
 int sendAddrF = 0;
+volatile int messRecvF;
 /* USER CODE END 0 */
 
 /**
@@ -306,12 +309,20 @@ static void MX_GPIO_Init(void)
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-	strDat = (struct CrcPacket*)&UART1_rxBuffer[0];
-	if((address==0)&&(strDat->data.preamble==0xAA)){
-		address = strDat->data.receiverAdress;
+	recvPacket = (struct CrcPacket*)&UART1_rxBuffer[0];
+	crcChecks = crcChecks + crcCheck(*recvPacket);
+	if(crcCheck(*recvPacket)==1){
+	if((state==INITIAL)&&(address==0)){
+		address = recvPacket->data.receiverAdress;
 
-		crcAct = HAL_CRC_Calculate(&hcrc, (uint32_t*)&strDat->data, 2);
+		crcAct = HAL_CRC_Calculate(&hcrc, (uint32_t*)&recvPacket->data, 2);
 		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
+	}
+	else if((state==IDLE)&&(recvPacket->data.receiverAdress==address)){
+		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+	}
+
+
 	}
 	/*LfCr[0]= (uint16_t)strDat->receiverAdress;
 	LfCr[1]= (uint16_t)strDat->senderAdress;
@@ -326,6 +337,13 @@ void sendPacket(struct Packet p){
 	HAL_UART_Transmit(&huart1,(uint8_t*) &msg , sizeof(msg), 100);
 	HAL_HalfDuplex_EnableReceiver(&huart1);
 
+}
+int crcCheck(struct CrcPacket p){
+	int res = 0;
+	if(p.crcVal==HAL_CRC_Calculate(&hcrc, (uint32_t*)&p.data, sizeof(p.data)/4)){
+		res = 1;
+	}
+	return res;
 }
 /* USER CODE END 4 */
 

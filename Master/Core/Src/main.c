@@ -22,7 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "stdlib.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -54,7 +54,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_CRC_Init(void);
 /* USER CODE BEGIN PFP */
-
+uint16_t randAdress();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -71,6 +71,7 @@ struct CrcPacket{
 
 uint8_t UART1_rxBuffer[sizeof(struct CrcPacket)] = {0};
 int sendF = 0;
+uint16_t rnd = 0;
 /* USER CODE END 0 */
 
 /**
@@ -85,7 +86,7 @@ int main(void)
 	uint8_t UART1_txBuffer[5] = {65,66,67,68,69};*/
 	struct Packet dt = {0xAA,300, 1, 322};
 	struct CrcPacket pkt = {dt, 123456};
-	uint32_t* c = (uint32_t*)&dt;
+	uint32_t* c = (uint32_t*)&pkt.data;
 	uint8_t* x = (uint8_t*)&pkt;
   /* USER CODE END 1 */
 
@@ -119,10 +120,22 @@ int main(void)
   while (1)
   {
 	  /* USER CODE END WHILE */
-	  HAL_Delay(2000);
+
+	  rnd = randAdress();
+	  if(sendF == 0){
+	  HAL_Delay(3000);
 	  pkt.crcVal = HAL_CRC_Calculate(&hcrc, c, 2);
 	  HAL_UART_Transmit(&huart1, x, sizeof(pkt) , 100);
 	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+	  sendF = 1;
+	  }
+	  else{
+	  HAL_Delay(500);
+	  pkt.data.receiverAdress = randAdress();
+	  pkt.crcVal = HAL_CRC_Calculate(&hcrc, c, 2);
+	  HAL_UART_Transmit(&huart1, x, sizeof(pkt) , 100);
+	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+	  }
 
 	  	  		/*if((HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14)==0)&&(sendF == 0)){
 	  	  			sendF = 1;
@@ -282,6 +295,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     HAL_UART_Receive_IT(&huart1, UART1_rxBuffer, sizeof(struct CrcPacket));
 
 
+}
+uint16_t randAdress(){
+	int r = 0;
+	int lower = 300;
+	int upper = 302;
+	r =  (rand() % (upper - lower + 1)) + lower;
+	return (uint16_t) r;
 }
 /* USER CODE END 4 */
 
