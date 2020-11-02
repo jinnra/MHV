@@ -83,7 +83,7 @@ volatile uint32_t crcAct = 0;
 volatile int crcChecks = 0;
 //Flags
 int sendAddrF = 0;
-volatile int messRecvF;
+volatile int messRecvF = 0;
 /* USER CODE END 0 */
 
 /**
@@ -146,9 +146,16 @@ for(int i = 0; i <(sizeof(struct CrcPacket)); i++){
 		  	 	  }
 		  break;
 	  case IDLE:
+		  if(messRecvF==1){
 		  HAL_ADC_Start(&hadc1);
 		  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
 		  adcVal = HAL_ADC_GetValue(&hadc1);
+		  sendDat.receiverAdress = 1;
+		  sendDat.senderAdress = address;
+		  sendDat.payload = adcVal;
+		  sendPacket(sendDat);
+		  messRecvF = 0;
+		  }
 		  break;
 	  case ARMED:
 	  	  break;
@@ -374,6 +381,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	}
 	else if((state==IDLE)&&(recvPacket->data.receiverAdress==address)){
 		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+		if(messRecvF==0)
+			messRecvF = 1;
 	}
 
 

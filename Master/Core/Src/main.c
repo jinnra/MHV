@@ -75,6 +75,7 @@ struct CrcPacket{
 uint8_t UART1_rxBuffer[sizeof(struct CrcPacket)] = {0};
 int sendF = 0;
 uint16_t rnd = 0;
+struct CrcPacket* recvPacket;
 /* USER CODE END 0 */
 
 /**
@@ -134,7 +135,7 @@ int main(void)
 	  sendF = 1;
 	  }
 	  else{
-	  HAL_Delay(300);
+	  HAL_Delay(500);
 	  pkt.data.receiverAdress = randAdress();
 	  pkt.crcVal = HAL_CRC_Calculate(&hcrc, c, 2);
 	  HAL_UART_Transmit(&huart1, x, sizeof(pkt) , 100);
@@ -346,6 +347,7 @@ static void MX_GPIO_Init(void)
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+	recvPacket = (struct CrcPacket*)&UART1_rxBuffer[0];
     HAL_UART_Receive_IT(&huart1, UART1_rxBuffer, sizeof(struct CrcPacket));
 
 
