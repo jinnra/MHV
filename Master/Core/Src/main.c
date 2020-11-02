@@ -40,6 +40,8 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
+
 CRC_HandleTypeDef hcrc;
 
 UART_HandleTypeDef huart1;
@@ -53,6 +55,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_CRC_Init(void);
+static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 uint16_t randAdress();
 /* USER CODE END PFP */
@@ -81,9 +84,6 @@ uint16_t rnd = 0;
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	/*uint8_t msb = foo >> 8;
-	uint8_t lsb = foo & 0xff;
-	uint8_t UART1_txBuffer[5] = {65,66,67,68,69};*/
 	struct Packet dt = {0xAA,300, 1, 322};
 	struct CrcPacket pkt = {dt, 123456};
 	uint32_t* c = (uint32_t*)&pkt.data;
@@ -110,16 +110,20 @@ int main(void)
   MX_GPIO_Init();
   MX_USART1_UART_Init();
   MX_CRC_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
   HAL_CRC_Init(&hcrc);
   HAL_UART_Receive_IT (&huart1, UART1_rxBuffer, sizeof(struct Packet));
+  HAL_ADC_Start(&hadc1);
+  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+  srand(HAL_ADC_GetValue(&hadc1));
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  /* USER CODE END WHILE */
+    /* USER CODE END WHILE */
 
 	  rnd = randAdress();
 	  if(sendF == 0){
@@ -130,7 +134,7 @@ int main(void)
 	  sendF = 1;
 	  }
 	  else{
-	  HAL_Delay(500);
+	  HAL_Delay(300);
 	  pkt.data.receiverAdress = randAdress();
 	  pkt.crcVal = HAL_CRC_Calculate(&hcrc, c, 2);
 	  HAL_UART_Transmit(&huart1, x, sizeof(pkt) , 100);
@@ -151,9 +155,7 @@ int main(void)
 	  	  			sendF = 0;
 	  	  			HAL_Delay(100);
 	  	  			}*/
-
-
-	  	      /* USER CODE BEGIN 3 */
+    /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
@@ -166,6 +168,7 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -194,6 +197,57 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
+  PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
+
+/**
+  * @brief ADC1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_ADC1_Init(void)
+{
+
+  /* USER CODE BEGIN ADC1_Init 0 */
+
+  /* USER CODE END ADC1_Init 0 */
+
+  ADC_ChannelConfTypeDef sConfig = {0};
+
+  /* USER CODE BEGIN ADC1_Init 1 */
+
+  /* USER CODE END ADC1_Init 1 */
+  /** Common config
+  */
+  hadc1.Instance = ADC1;
+  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc1.Init.ContinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
+  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc1.Init.NbrOfConversion = 1;
+  if (HAL_ADC_Init(&hadc1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_5;
+  sConfig.Rank = ADC_REGULAR_RANK_1;
+  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN ADC1_Init 2 */
+
+  /* USER CODE END ADC1_Init 2 */
+
 }
 
 /**
@@ -267,8 +321,8 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
