@@ -77,7 +77,7 @@ uint8_t UART1_rxBuffer[sizeof(struct CrcPacket)] = {0};
 uint8_t LfCr[4]={0,0,10,13};
 uint16_t adcVal = 0;
 struct CrcPacket* recvPacket;
-struct Packet sendDat = {0xAA,0,0,322};
+struct Packet sendDat = {0xAA,0,0,333};
 volatile uint16_t address = 0;
 volatile uint32_t crcAct = 0;
 volatile int crcChecks = 0;
@@ -116,15 +116,15 @@ for(int i = 0; i <(sizeof(struct CrcPacket)); i++){
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  HAL_Delay(1000);
   MX_USART1_UART_Init();
   MX_USB_DEVICE_Init();
   MX_CRC_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
-  HAL_Delay(300);
   HAL_HalfDuplex_Init(&huart1);
   HAL_HalfDuplex_EnableReceiver(&huart1);
-  HAL_UART_Receive_IT (&huart1, UART1_rxBuffer, sizeof(struct CrcPacket));
+  HAL_UART_Receive_IT (&huart1, UART1_rxBuffer, sizeof(UART1_rxBuffer));
 
 
   /* USER CODE END 2 */
@@ -135,7 +135,7 @@ for(int i = 0; i <(sizeof(struct CrcPacket)); i++){
   {
 	  switch(state){
 	  case INITIAL:
-		  if((sendAddrF==0)&&(address>100)){
+		  if((sendAddrF==0)&&(address!=0)){
 		  	 		 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, 1);
 		  	 		 sendDat.receiverAdress = address+1;
 		  	 		 sendDat.senderAdress = address;
@@ -390,7 +390,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	/*LfCr[0]= (uint16_t)strDat->receiverAdress;
 	LfCr[1]= (uint16_t)strDat->senderAdress;
 	CDC_Transmit_FS(LfCr,sizeof(LfCr)); */
-    HAL_UART_Receive_IT(&huart1, UART1_rxBuffer, sizeof(struct CrcPacket));
+    HAL_UART_Receive_IT(&huart1, UART1_rxBuffer, sizeof(UART1_rxBuffer));
 
 
 }

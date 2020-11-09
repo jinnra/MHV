@@ -32,6 +32,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define STARTADDRESS 100
+#define MASTERADDRESS 1
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -57,7 +59,9 @@ static void MX_USART1_UART_Init(void);
 static void MX_CRC_Init(void);
 static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
-uint16_t randAdress();
+uint16_t randAddress();
+int crcCheck();
+void sendPacket();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -65,7 +69,7 @@ uint16_t randAdress();
 
 struct Packet{
 uint8_t preamble;
-uint16_t receiverAdress,senderAdress, payload;
+uint16_t receiverAddress,senderAddress, payload;
 };
 struct CrcPacket{
 	struct Packet data;
@@ -73,8 +77,13 @@ struct CrcPacket{
 };
 
 uint8_t UART1_rxBuffer[sizeof(struct CrcPacket)] = {0};
+volatile uint16_t db[20] = {0};
 int sendF = 0;
+volatile int answF = 0;
+int slvCount = 0;
+volatile int addrInit = 0;
 uint16_t rnd = 0;
+uint16_t mnus = 11;
 struct CrcPacket* recvPacket;
 /* USER CODE END 0 */
 
@@ -85,10 +94,10 @@ struct CrcPacket* recvPacket;
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	struct Packet dt = {0xAA,300, 1, 322};
-	struct CrcPacket pkt = {dt, 123456};
-	uint32_t* c = (uint32_t*)&pkt.data;
-	uint8_t* x = (uint8_t*)&pkt;
+	struct Packet dt = {0xAA,STARTADDRESS, MASTERADDRESS, 322};
+	for(int i = 0; i <(sizeof(struct CrcPacket)); i++){
+		UART1_rxBuffer[i] = 222;
+	}
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -109,12 +118,13 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  HAL_Delay(500);
   MX_USART1_UART_Init();
   MX_CRC_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
   HAL_CRC_Init(&hcrc);
-  HAL_UART_Receive_IT (&huart1, UART1_rxBuffer, sizeof(struct Packet));
+  HAL_UART_Receive_IT (&huart1, UART1_rxBuffer, sizeof(UART1_rxBuffer));
   HAL_ADC_Start(&hadc1);
   HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
   srand(HAL_ADC_GetValue(&hadc1));
@@ -126,20 +136,20 @@ int main(void)
   {
     /* USER CODE END WHILE */
 
-	  rnd = randAdress();
+	  rnd = randAddress();
 	  if(sendF == 0){
-	  HAL_Delay(3000);
-	  pkt.crcVal = HAL_CRC_Calculate(&hcrc, c, 2);
-	  HAL_UART_Transmit(&huart1, x, sizeof(pkt) , 100);
+	  HAL_Delay(1000);
+	  sendPacket(dt);
 	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 	  sendF = 1;
+
 	  }
-	  else{
-	  HAL_Delay(500);
-	  pkt.data.receiverAdress = randAdress();
-	  pkt.crcVal = HAL_CRC_Calculate(&hcrc, c, 2);
-	  HAL_UART_Transmit(&huart1, x, sizeof(pkt) , 100);
-	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+	  else if((addrInit==1)&&(answF==1)){
+		  HAL_Delay(50);
+		  answF= 0;
+		  dt.receiverAddress = randAddress();
+		  sendPacket(dt);
+		  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 	  }
 
 	  	  		/*if((HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14)==0)&&(sendF == 0)){
@@ -348,16 +358,40 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 	recvPacket = (struct CrcPacket*)&UART1_rxBuffer[0];
-    HAL_UART_Receive_IT(&huart1, UART1_rxBuffer, sizeof(struct CrcPacket));
+	if(crcCheck(*recvPacket)==1){
+	if(addrInit==0){
+	slvCount = recvPacket->data.senderAddress - STARTADDRESS;
+	addrInit = 1;
+	}
+	else{
+		if((recvPacket->data.senderAddress - STARTADDRESS)<sizeof(db)){
+	db[(recvPacket->data.senderAddress - STARTADDRESS)]= recvPacket->data.payload;
+		}
+
+	}
+	}
+	answF = 1;
+    HAL_UART_Receive_IT(&huart1, UART1_rxBuffer, sizeof(UART1_rxBuffer));
 
 
 }
-uint16_t randAdress(){
+uint16_t randAddress(){
 	int r = 0;
-	int lower = 300;
-	int upper = 302;
+	int lower = STARTADDRESS;
+	int upper = STARTADDRESS + slvCount;
 	r =  (rand() % (upper - lower + 1)) + lower;
 	return (uint16_t) r;
+}
+int crcCheck(struct CrcPacket p){
+	int res = 0;
+	if(p.crcVal==HAL_CRC_Calculate(&hcrc, (uint32_t*)&p.data, sizeof(p.data)/4)){
+		res = 1;
+	}
+	return res;
+}
+void sendPacket(struct Packet p){
+	struct CrcPacket msg = {p, HAL_CRC_Calculate(&hcrc, (uint32_t*) &p, sizeof(p)/4)};
+	HAL_UART_Transmit(&huart1,(uint8_t*) &msg , sizeof(msg), 100);
 }
 /* USER CODE END 4 */
 
