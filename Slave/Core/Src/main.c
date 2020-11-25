@@ -19,7 +19,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -45,7 +44,7 @@ ADC_HandleTypeDef hadc1;
 
 CRC_HandleTypeDef hcrc;
 
-UART_HandleTypeDef huart1;
+UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
 int state = INITIAL;
@@ -54,9 +53,9 @@ int state = INITIAL;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_USART1_UART_Init(void);
 static void MX_CRC_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
 void sendPacket();
 int crcCheck();
@@ -116,15 +115,16 @@ for(int i = 0; i <(sizeof(struct CrcPacket)); i++){
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  HAL_Delay(1000);
-  MX_USART1_UART_Init();
-  MX_USB_DEVICE_Init();
   MX_CRC_Init();
   MX_ADC1_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
-  HAL_HalfDuplex_Init(&huart1);
-  HAL_HalfDuplex_EnableReceiver(&huart1);
-  HAL_UART_Receive_IT (&huart1, UART1_rxBuffer, sizeof(UART1_rxBuffer));
+  HAL_Delay(200);
+  HAL_HalfDuplex_Init(&huart3);
+  HAL_HalfDuplex_EnableReceiver(&huart3);
+  HAL_UART_Receive_IT (&huart3, UART1_rxBuffer, sizeof(UART1_rxBuffer));
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
 
 
   /* USER CODE END 2 */
@@ -136,7 +136,7 @@ for(int i = 0; i <(sizeof(struct CrcPacket)); i++){
 	  switch(state){
 	  case INITIAL:
 		  if((sendAddrF==0)&&(address!=0)){
-		  	 		 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, 1);
+		  	 		 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, 1);
 		  	 		 sendDat.receiverAdress = address+1;
 		  	 		 sendDat.senderAdress = address;
 		  	 		 HAL_Delay(200);
@@ -206,9 +206,8 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC|RCC_PERIPHCLK_USB;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
   PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV4;
-  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_PLL;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
@@ -247,7 +246,7 @@ static void MX_ADC1_Init(void)
   }
   /** Configure Regular Channel
   */
-  sConfig.Channel = ADC_CHANNEL_5;
+  sConfig.Channel = ADC_CHANNEL_9;
   sConfig.Rank = ADC_REGULAR_RANK_1;
   sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
@@ -287,35 +286,35 @@ static void MX_CRC_Init(void)
 }
 
 /**
-  * @brief USART1 Initialization Function
+  * @brief USART3 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_USART1_UART_Init(void)
+static void MX_USART3_UART_Init(void)
 {
 
-  /* USER CODE BEGIN USART1_Init 0 */
+  /* USER CODE BEGIN USART3_Init 0 */
 
-  /* USER CODE END USART1_Init 0 */
+  /* USER CODE END USART3_Init 0 */
 
-  /* USER CODE BEGIN USART1_Init 1 */
+  /* USER CODE BEGIN USART3_Init 1 */
 
-  /* USER CODE END USART1_Init 1 */
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 9600;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_HalfDuplex_Init(&huart1) != HAL_OK)
+  /* USER CODE END USART3_Init 1 */
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 1000;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_HalfDuplex_Init(&huart3) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN USART1_Init 2 */
+  /* USER CODE BEGIN USART3_Init 2 */
 
-  /* USER CODE END USART1_Init 2 */
+  /* USER CODE END USART3_Init 2 */
 
 }
 
@@ -331,38 +330,28 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13|GPIO_PIN_14, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_10, GPIO_PIN_RESET);
-
-  /*Configure GPIO pin : PC13 */
-  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  /*Configure GPIO pins : PC13 PC14 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_14;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PB14 */
-  GPIO_InitStruct.Pin = GPIO_PIN_14;
+  /*Configure GPIO pin : PB11 */
+  GPIO_InitStruct.Pin = GPIO_PIN_11;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-
-  /*Configure GPIO pin : PA10 */
-  GPIO_InitStruct.Pin = GPIO_PIN_10;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 }
 
@@ -377,10 +366,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		address = recvPacket->data.receiverAdress;
 
 		crcAct = HAL_CRC_Calculate(&hcrc, (uint32_t*)&recvPacket->data, 2);
-		HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, 1);
+		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
 	}
 	else if((state==IDLE)&&(recvPacket->data.receiverAdress==address)){
-		HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_14);
+		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_14);
 		if(messRecvF==0)
 			messRecvF = 1;
 	}
@@ -390,15 +379,16 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	/*LfCr[0]= (uint16_t)strDat->receiverAdress;
 	LfCr[1]= (uint16_t)strDat->senderAdress;
 	CDC_Transmit_FS(LfCr,sizeof(LfCr)); */
-    HAL_UART_Receive_IT(&huart1, UART1_rxBuffer, sizeof(UART1_rxBuffer));
+    HAL_UART_Receive_IT(&huart3, UART1_rxBuffer, sizeof(UART1_rxBuffer));
 
 
 }
 void sendPacket(struct Packet p){
 	struct CrcPacket msg = {p, HAL_CRC_Calculate(&hcrc, (uint32_t*) &p, sizeof(p)/4)};
-	HAL_HalfDuplex_EnableTransmitter(&huart1);
-	HAL_UART_Transmit(&huart1,(uint8_t*) &msg , sizeof(msg), 100);
-	HAL_HalfDuplex_EnableReceiver(&huart1);
+	HAL_HalfDuplex_EnableTransmitter(&huart3);
+	HAL_UART_Transmit(&huart3,(uint8_t*) &msg , sizeof(msg), 100);
+	HAL_HalfDuplex_EnableReceiver(&huart3);
+	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 
 }
 int crcCheck(struct CrcPacket p){

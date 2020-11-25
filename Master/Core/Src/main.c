@@ -46,7 +46,7 @@ ADC_HandleTypeDef hadc1;
 
 CRC_HandleTypeDef hcrc;
 
-UART_HandleTypeDef huart1;
+UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
 
@@ -55,9 +55,9 @@ UART_HandleTypeDef huart1;
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_USART1_UART_Init(void);
 static void MX_CRC_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_USART3_UART_Init(void);
 /* USER CODE BEGIN PFP */
 uint16_t randAddress();
 int crcCheck();
@@ -118,23 +118,24 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  HAL_Delay(500);
-  MX_USART1_UART_Init();
   MX_CRC_Init();
   MX_ADC1_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_CRC_Init(&hcrc);
-  HAL_UART_Receive_IT (&huart1, UART1_rxBuffer, sizeof(UART1_rxBuffer));
+  HAL_UART_Receive_IT (&huart3, UART1_rxBuffer, sizeof(UART1_rxBuffer));
   HAL_ADC_Start(&hadc1);
   HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
   srand(HAL_ADC_GetValue(&hadc1));
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 1);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    /* USER CODE END WHILE */
 
 	  rnd = randAddress();
 	  if(sendF == 0){
@@ -151,21 +152,8 @@ int main(void)
 		  sendPacket(dt);
 		  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 	  }
+    /* USER CODE END WHILE */
 
-	  	  		/*if((HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14)==0)&&(sendF == 0)){
-	  	  			sendF = 1;
-
-
-	  	  			sizes = sizeof(struct CrcPacket);
-	  	  			size = sizeof(pkt);
-	  	  			HAL_UART_Transmit(&huart1, &sendchar, 1 , 100);
-	  	  			//HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-	  	  			HAL_Delay(100);
-	  	  			}
-	  	  			if((HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14)==1)&&(sendF == 1)){
-	  	  			sendF = 0;
-	  	  			HAL_Delay(100);
-	  	  			}*/
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -248,7 +236,7 @@ static void MX_ADC1_Init(void)
   }
   /** Configure Regular Channel
   */
-  sConfig.Channel = ADC_CHANNEL_5;
+  sConfig.Channel = ADC_CHANNEL_9;
   sConfig.Rank = ADC_REGULAR_RANK_1;
   sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
@@ -288,35 +276,35 @@ static void MX_CRC_Init(void)
 }
 
 /**
-  * @brief USART1 Initialization Function
+  * @brief USART3 Initialization Function
   * @param None
   * @retval None
   */
-static void MX_USART1_UART_Init(void)
+static void MX_USART3_UART_Init(void)
 {
 
-  /* USER CODE BEGIN USART1_Init 0 */
+  /* USER CODE BEGIN USART3_Init 0 */
 
-  /* USER CODE END USART1_Init 0 */
+  /* USER CODE END USART3_Init 0 */
 
-  /* USER CODE BEGIN USART1_Init 1 */
+  /* USER CODE BEGIN USART3_Init 1 */
 
-  /* USER CODE END USART1_Init 1 */
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 9600;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart1) != HAL_OK)
+  /* USER CODE END USART3_Init 1 */
+  huart3.Instance = USART3;
+  huart3.Init.BaudRate = 1000;
+  huart3.Init.WordLength = UART_WORDLENGTH_8B;
+  huart3.Init.StopBits = UART_STOPBITS_1;
+  huart3.Init.Parity = UART_PARITY_NONE;
+  huart3.Init.Mode = UART_MODE_TX_RX;
+  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart3) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN USART1_Init 2 */
+  /* USER CODE BEGIN USART3_Init 2 */
 
-  /* USER CODE END USART1_Init 2 */
+  /* USER CODE END USART3_Init 2 */
 
 }
 
@@ -336,27 +324,31 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13|GPIO_PIN_14, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PC13 */
-  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : PC13 PC14 */
+  GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_14;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : PB14 */
-  GPIO_InitStruct.Pin = GPIO_PIN_14;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_PULLUP;
-  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+  /*Configure GPIO pin : PA1 */
+  GPIO_InitStruct.Pin = GPIO_PIN_1;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 }
 
 /* USER CODE BEGIN 4 */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_14);
 	recvPacket = (struct CrcPacket*)&UART1_rxBuffer[0];
 	if(crcCheck(*recvPacket)==1){
 	if(addrInit==0){
@@ -371,7 +363,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	}
 	}
 	answF = 1;
-    HAL_UART_Receive_IT(&huart1, UART1_rxBuffer, sizeof(UART1_rxBuffer));
+    HAL_UART_Receive_IT(&huart3, UART1_rxBuffer, sizeof(UART1_rxBuffer));
 
 
 }
@@ -391,7 +383,7 @@ int crcCheck(struct CrcPacket p){
 }
 void sendPacket(struct Packet p){
 	struct CrcPacket msg = {p, HAL_CRC_Calculate(&hcrc, (uint32_t*) &p, sizeof(p)/4)};
-	HAL_UART_Transmit(&huart1,(uint8_t*) &msg , sizeof(msg), 100);
+	HAL_UART_Transmit(&huart3,(uint8_t*) &msg , sizeof(msg), 100);
 }
 /* USER CODE END 4 */
 
