@@ -119,8 +119,9 @@ for(int i = 0; i <(sizeof(struct CrcPacket)); i++){
   MX_ADC1_Init();
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
-  HAL_Delay(200);
   HAL_HalfDuplex_Init(&huart3);
+  HAL_HalfDuplex_EnableTransmitter(&huart3);
+  HAL_Delay(500);
   HAL_HalfDuplex_EnableReceiver(&huart3);
   HAL_UART_Receive_IT (&huart3, UART1_rxBuffer, sizeof(UART1_rxBuffer));
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
@@ -301,7 +302,7 @@ static void MX_USART3_UART_Init(void)
 
   /* USER CODE END USART3_Init 1 */
   huart3.Instance = USART3;
-  huart3.Init.BaudRate = 1000;
+  huart3.Init.BaudRate = 9600;
   huart3.Init.WordLength = UART_WORDLENGTH_8B;
   huart3.Init.StopBits = UART_STOPBITS_1;
   huart3.Init.Parity = UART_PARITY_NONE;

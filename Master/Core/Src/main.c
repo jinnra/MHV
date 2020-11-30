@@ -139,7 +139,7 @@ int main(void)
 
 	  rnd = randAddress();
 	  if(sendF == 0){
-	  HAL_Delay(1000);
+	  HAL_Delay(3000);
 	  sendPacket(dt);
 	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 	  sendF = 1;
@@ -291,7 +291,7 @@ static void MX_USART3_UART_Init(void)
 
   /* USER CODE END USART3_Init 1 */
   huart3.Instance = USART3;
-  huart3.Init.BaudRate = 1000;
+  huart3.Init.BaudRate = 9600;
   huart3.Init.WordLength = UART_WORDLENGTH_8B;
   huart3.Init.StopBits = UART_STOPBITS_1;
   huart3.Init.Parity = UART_PARITY_NONE;

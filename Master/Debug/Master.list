@@ -39,11 +39,11 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   CONTENTS, READONLY, DEBUGGING
  17 .debug_line   00007b4b  00000000  00000000  00042703  2**0
                   CONTENTS, READONLY, DEBUGGING
- 18 .debug_str    00086377  00000000  00000000  0004a24e  2**0
+ 18 .debug_str    00086353  00000000  00000000  0004a24e  2**0
                   CONTENTS, READONLY, DEBUGGING
- 19 .comment      0000007b  00000000  00000000  000d05c5  2**0
+ 19 .comment      0000007b  00000000  00000000  000d05a1  2**0
                   CONTENTS, READONLY
- 20 .debug_frame  000020cc  00000000  00000000  000d0640  2**2
+ 20 .debug_frame  000020cc  00000000  00000000  000d061c  2**2
                   CONTENTS, READONLY, DEBUGGING
 
 Disassembly of section .text:
@@ -189,8 +189,8 @@ int main(void)
  80001f0:	681b      	ldr	r3, [r3, #0]
  80001f2:	2b00      	cmp	r3, #0
  80001f4:	d111      	bne.n	800021a <main+0xce>
-	  HAL_Delay(1000);
- 80001f6:	f44f 707a 	mov.w	r0, #1000	; 0x3e8
+	  HAL_Delay(3000);
+ 80001f6:	f640 30b8 	movw	r0, #3000	; 0xbb8
  80001fa:	f000 fc15 	bl	8000a28 <HAL_Delay>
 	  sendPacket(dt);
  80001fe:	1d3b      	adds	r3, r7, #4
@@ -527,9 +527,9 @@ static void MX_USART3_UART_Init(void)
  80003e0:	4b11      	ldr	r3, [pc, #68]	; (8000428 <MX_USART3_UART_Init+0x4c>)
  80003e2:	4a12      	ldr	r2, [pc, #72]	; (800042c <MX_USART3_UART_Init+0x50>)
  80003e4:	601a      	str	r2, [r3, #0]
-  huart3.Init.BaudRate = 1000;
+  huart3.Init.BaudRate = 9600;
  80003e6:	4b10      	ldr	r3, [pc, #64]	; (8000428 <MX_USART3_UART_Init+0x4c>)
- 80003e8:	f44f 727a 	mov.w	r2, #1000	; 0x3e8
+ 80003e8:	f44f 5216 	mov.w	r2, #9600	; 0x2580
  80003ec:	605a      	str	r2, [r3, #4]
   huart3.Init.WordLength = UART_WORDLENGTH_8B;
  80003ee:	4b0e      	ldr	r3, [pc, #56]	; (8000428 <MX_USART3_UART_Init+0x4c>)
@@ -1406,23 +1406,44 @@ void USART3_IRQHandler(void)
  800089c:	200000e4 	.word	0x200000e4
 
 080008a0 <_sbrk>:
+ *
+ * @param incr Memory size
+ * @return Pointer to allocated memory
+ */
+void *_sbrk(ptrdiff_t incr)
+{
  80008a0:	b580      	push	{r7, lr}
  80008a2:	b086      	sub	sp, #24
  80008a4:	af00      	add	r7, sp, #0
  80008a6:	6078      	str	r0, [r7, #4]
+  extern uint8_t _end; /* Symbol defined in the linker script */
+  extern uint8_t _estack; /* Symbol defined in the linker script */
+  extern uint32_t _Min_Stack_Size; /* Symbol defined in the linker script */
+  const uint32_t stack_limit = (uint32_t)&_estack - (uint32_t)&_Min_Stack_Size;
  80008a8:	4a14      	ldr	r2, [pc, #80]	; (80008fc <_sbrk+0x5c>)
  80008aa:	4b15      	ldr	r3, [pc, #84]	; (8000900 <_sbrk+0x60>)
  80008ac:	1ad3      	subs	r3, r2, r3
  80008ae:	617b      	str	r3, [r7, #20]
+  const uint8_t *max_heap = (uint8_t *)stack_limit;
  80008b0:	697b      	ldr	r3, [r7, #20]
  80008b2:	613b      	str	r3, [r7, #16]
+  uint8_t *prev_heap_end;
+
+  /* Initalize heap end at first call */
+  if (NULL == __sbrk_heap_end)
  80008b4:	4b13      	ldr	r3, [pc, #76]	; (8000904 <_sbrk+0x64>)
  80008b6:	681b      	ldr	r3, [r3, #0]
  80008b8:	2b00      	cmp	r3, #0
  80008ba:	d102      	bne.n	80008c2 <_sbrk+0x22>
+  {
+    __sbrk_heap_end = &_end;
  80008bc:	4b11      	ldr	r3, [pc, #68]	; (8000904 <_sbrk+0x64>)
  80008be:	4a12      	ldr	r2, [pc, #72]	; (8000908 <_sbrk+0x68>)
  80008c0:	601a      	str	r2, [r3, #0]
+  }
+
+  /* Protect heap from growing into the reserved MSP stack */
+  if (__sbrk_heap_end + incr > max_heap)
  80008c2:	4b10      	ldr	r3, [pc, #64]	; (8000904 <_sbrk+0x64>)
  80008c4:	681a      	ldr	r2, [r3, #0]
  80008c6:	687b      	ldr	r3, [r7, #4]
@@ -1430,22 +1451,32 @@ void USART3_IRQHandler(void)
  80008ca:	693a      	ldr	r2, [r7, #16]
  80008cc:	429a      	cmp	r2, r3
  80008ce:	d207      	bcs.n	80008e0 <_sbrk+0x40>
+  {
+    errno = ENOMEM;
  80008d0:	f002 f9fe 	bl	8002cd0 <__errno>
  80008d4:	4602      	mov	r2, r0
  80008d6:	230c      	movs	r3, #12
  80008d8:	6013      	str	r3, [r2, #0]
+    return (void *)-1;
  80008da:	f04f 33ff 	mov.w	r3, #4294967295
  80008de:	e009      	b.n	80008f4 <_sbrk+0x54>
+  }
+
+  prev_heap_end = __sbrk_heap_end;
  80008e0:	4b08      	ldr	r3, [pc, #32]	; (8000904 <_sbrk+0x64>)
  80008e2:	681b      	ldr	r3, [r3, #0]
  80008e4:	60fb      	str	r3, [r7, #12]
+  __sbrk_heap_end += incr;
  80008e6:	4b07      	ldr	r3, [pc, #28]	; (8000904 <_sbrk+0x64>)
  80008e8:	681a      	ldr	r2, [r3, #0]
  80008ea:	687b      	ldr	r3, [r7, #4]
  80008ec:	4413      	add	r3, r2
  80008ee:	4a05      	ldr	r2, [pc, #20]	; (8000904 <_sbrk+0x64>)
  80008f0:	6013      	str	r3, [r2, #0]
+
+  return (void *)prev_heap_end;
  80008f2:	68fb      	ldr	r3, [r7, #12]
+}
  80008f4:	4618      	mov	r0, r3
  80008f6:	3718      	adds	r7, #24
  80008f8:	46bd      	mov	sp, r7
@@ -1476,43 +1507,93 @@ void SystemInit (void)
  8000916:	4770      	bx	lr
 
 08000918 <Reset_Handler>:
+  .weak Reset_Handler
+  .type Reset_Handler, %function
+Reset_Handler:
+
+/* Copy the data segment initializers from flash to SRAM */
+  movs r1, #0
  8000918:	2100      	movs	r1, #0
+  b LoopCopyDataInit
  800091a:	e003      	b.n	8000924 <LoopCopyDataInit>
 
 0800091c <CopyDataInit>:
+
+CopyDataInit:
+  ldr r3, =_sidata
  800091c:	4b0b      	ldr	r3, [pc, #44]	; (800094c <LoopFillZerobss+0x14>)
+  ldr r3, [r3, r1]
  800091e:	585b      	ldr	r3, [r3, r1]
+  str r3, [r0, r1]
  8000920:	5043      	str	r3, [r0, r1]
+  adds r1, r1, #4
  8000922:	3104      	adds	r1, #4
 
 08000924 <LoopCopyDataInit>:
+
+LoopCopyDataInit:
+  ldr r0, =_sdata
  8000924:	480a      	ldr	r0, [pc, #40]	; (8000950 <LoopFillZerobss+0x18>)
+  ldr r3, =_edata
  8000926:	4b0b      	ldr	r3, [pc, #44]	; (8000954 <LoopFillZerobss+0x1c>)
+  adds r2, r0, r1
  8000928:	1842      	adds	r2, r0, r1
+  cmp r2, r3
  800092a:	429a      	cmp	r2, r3
+  bcc CopyDataInit
  800092c:	d3f6      	bcc.n	800091c <CopyDataInit>
+  ldr r2, =_sbss
  800092e:	4a0a      	ldr	r2, [pc, #40]	; (8000958 <LoopFillZerobss+0x20>)
+  b LoopFillZerobss
  8000930:	e002      	b.n	8000938 <LoopFillZerobss>
 
 08000932 <FillZerobss>:
+/* Zero fill the bss segment. */
+FillZerobss:
+  movs r3, #0
  8000932:	2300      	movs	r3, #0
+  str r3, [r2], #4
  8000934:	f842 3b04 	str.w	r3, [r2], #4
 
 08000938 <LoopFillZerobss>:
+
+LoopFillZerobss:
+  ldr r3, = _ebss
  8000938:	4b08      	ldr	r3, [pc, #32]	; (800095c <LoopFillZerobss+0x24>)
+  cmp r2, r3
  800093a:	429a      	cmp	r2, r3
+  bcc FillZerobss
  800093c:	d3f9      	bcc.n	8000932 <FillZerobss>
+
+/* Call the clock system intitialization function.*/
+    bl  SystemInit
  800093e:	f7ff ffe5 	bl	800090c <SystemInit>
+/* Call static constructors */
+    bl __libc_init_array
  8000942:	f002 f9cb 	bl	8002cdc <__libc_init_array>
+/* Call the application's entry point.*/
+  bl main
  8000946:	f7ff fc01 	bl	800014c <main>
+  bx lr
  800094a:	4770      	bx	lr
+  ldr r3, =_sidata
  800094c:	08002f34 	.word	0x08002f34
+  ldr r0, =_sdata
  8000950:	20000000 	.word	0x20000000
+  ldr r3, =_edata
  8000954:	20000070 	.word	0x20000070
+  ldr r2, =_sbss
  8000958:	20000070 	.word	0x20000070
+  ldr r3, = _ebss
  800095c:	20000164 	.word	0x20000164
 
 08000960 <ADC1_2_IRQHandler>:
+ * @retval : None
+*/
+    .section .text.Default_Handler,"ax",%progbits
+Default_Handler:
+Infinite_Loop:
+  b Infinite_Loop
  8000960:	e7fe      	b.n	8000960 <ADC1_2_IRQHandler>
 	...
 
