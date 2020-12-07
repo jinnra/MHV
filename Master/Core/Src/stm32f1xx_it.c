@@ -59,14 +59,11 @@ struct CrcPacket* recvPacket ;
 
 /* External variables --------------------------------------------------------*/
 extern UART_HandleTypeDef huart3;
+/* USER CODE BEGIN EV */
 extern CRC_HandleTypeDef hcrc;
-
 extern uint8_t UART1_rxBuffer[];
 extern int recv_flag;
-
 struct CrcPacket recv_message;
-/* USER CODE BEGIN EV */
-
 /* USER CODE END EV */
 
 /******************************************************************************/

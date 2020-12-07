@@ -54,6 +54,7 @@ struct CrcPacket recv_message;
 int recv_flag = 0;
 struct Packet sendDat = {0xAA,0,0,333};
 uint16_t address = 0;
+uint32_t adc_timestamp = 0;
 
 /* USER CODE END PV */
 
@@ -145,9 +146,6 @@ for(int i = 0; i <(sizeof(struct CrcPacket)); i++){
 		  if(recv_flag){
 			  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 			  if(recv_message.data.receiverAddress==address){
-				  HAL_ADC_Start(&hadc1);
-				  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-				  adcVal = HAL_ADC_GetValue(&hadc1);
 				  sendDat.receiverAddress = 1;
 				  sendDat.senderAddress = address;
 				  sendDat.payload = adcVal;
@@ -155,6 +153,12 @@ for(int i = 0; i <(sizeof(struct CrcPacket)); i++){
 				  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_14);
 			  }
 			  recv_flag = 0;
+		  }
+		  if((HAL_GetTick()-adc_timestamp)>500){
+			  HAL_ADC_Start(&hadc1);
+			  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+			  adcVal = HAL_ADC_GetValue(&hadc1);
+			  adc_timestamp = HAL_GetTick();
 		  }
 		  break;
 	  case ARMED:
@@ -300,7 +304,7 @@ static void MX_USART3_UART_Init(void)
 
   /* USER CODE END USART3_Init 1 */
   huart3.Instance = USART3;
-  huart3.Init.BaudRate = 9600;
+  huart3.Init.BaudRate = 19200;
   huart3.Init.WordLength = UART_WORDLENGTH_8B;
   huart3.Init.StopBits = UART_STOPBITS_1;
   huart3.Init.Parity = UART_PARITY_NONE;
