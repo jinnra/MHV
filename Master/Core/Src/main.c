@@ -27,7 +27,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+enum States{INITIAL, IDLE, ARMED};
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -49,7 +49,16 @@ CRC_HandleTypeDef hcrc;
 UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
-
+int state = INITIAL;
+uint8_t UART1_rxBuffer[sizeof(struct CrcPacket)] = {0};
+volatile uint16_t db[20] = {0};
+struct CrcPacket recv_message;
+int recv_flag = 0;
+uint32_t timestmp = 0;
+int sent_flag = 0;
+int slvCount = 0;
+uint16_t rnd = 0;
+uint16_t mnus = 11;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -67,24 +76,8 @@ void sendPacket();
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-struct Packet{
-uint8_t preamble;
-uint16_t receiverAddress,senderAddress, payload;
-};
-struct CrcPacket{
-	struct Packet data;
-	uint32_t crcVal;
-};
 
-uint8_t UART1_rxBuffer[sizeof(struct CrcPacket)] = {0};
-volatile uint16_t db[20] = {0};
-int sendF = 0;
-volatile int answF = 0;
-int slvCount = 0;
-volatile int addrInit = 0;
-uint16_t rnd = 0;
-uint16_t mnus = 11;
-struct CrcPacket* recvPacket;
+
 /* USER CODE END 0 */
 
 /**
@@ -123,7 +116,8 @@ int main(void)
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_CRC_Init(&hcrc);
-  HAL_UART_Receive_IT (&huart3, UART1_rxBuffer, sizeof(UART1_rxBuffer));
+  __HAL_UART_ENABLE_IT(&huart3, UART_IT_RXNE);
+ // HAL_UART_Receive_IT (&huart3, UART1_rxBuffer, sizeof(UART1_rxBuffer));
   HAL_ADC_Start(&hadc1);
   HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
   srand(HAL_ADC_GetValue(&hadc1));
@@ -136,22 +130,50 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
-	  rnd = randAddress();
-	  if(sendF == 0){
-	  HAL_Delay(3000);
-	  sendPacket(dt);
-	  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-	  sendF = 1;
-
-	  }
-	  else if((addrInit==1)&&(answF==1)){
-		  HAL_Delay(50);
-		  answF= 0;
-		  dt.receiverAddress = randAddress();
+ switch(state){
+	  case INITIAL:
+		  if(sent_flag == 0){
+		  HAL_Delay(1000);
 		  sendPacket(dt);
 		  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-	  }
+		  sent_flag = 1;
+		  }
+		  else if((recv_flag==1)&&(recv_message.data.payload==322)){
+			  slvCount = recv_message.data.receiverAddress - STARTADDRESS;
+			  recv_flag =  0;
+			  sent_flag = 0;
+			  state = IDLE;
+		  }
+		  break;
+	  case IDLE:
+		  if(sent_flag == 0){
+			  dt.receiverAddress = randAddress();
+			  dt.payload = 300;
+			  sendPacket(dt);
+			  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+			  timestmp = HAL_GetTick();
+			  sent_flag = 1;
+		  }
+		  if((recv_flag==1)&&(recv_message.data.receiverAddress==1)){
+			  if((recv_message.data.senderAddress - STARTADDRESS)<sizeof(db)){
+				  db[(recv_message.data.senderAddress - STARTADDRESS)]= recv_message.data.payload;
+				  HAL_Delay(50);
+				  sent_flag = 0;
+			  		}
+		  }
+		  if((HAL_GetTick()-timestmp)>200)
+			  sent_flag = 0;
+
+
+
+		  
+		  break;
+	  case ARMED:
+		  break;
+	  default: 
+		  break;
+ }
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -346,27 +368,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_14);
-	recvPacket = (struct CrcPacket*)&UART1_rxBuffer[0];
-	if(crcCheck(*recvPacket)==1){
-	if(addrInit==0){
-	slvCount = recvPacket->data.senderAddress - STARTADDRESS;
-	addrInit = 1;
-	}
-	else{
-		if((recvPacket->data.senderAddress - STARTADDRESS)<sizeof(db)){
-	db[(recvPacket->data.senderAddress - STARTADDRESS)]= recvPacket->data.payload;
-		}
 
-	}
-	}
-	answF = 1;
-    HAL_UART_Receive_IT(&huart3, UART1_rxBuffer, sizeof(UART1_rxBuffer));
-
-
-}
 uint16_t randAddress(){
 	int r = 0;
 	int lower = STARTADDRESS;

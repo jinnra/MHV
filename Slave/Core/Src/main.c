@@ -48,6 +48,13 @@ UART_HandleTypeDef huart3;
 
 /* USER CODE BEGIN PV */
 int state = INITIAL;
+uint8_t UART1_rxBuffer[sizeof(struct CrcPacket)] = {0};
+uint16_t adcVal = 0;
+struct CrcPacket recv_message;
+int recv_flag = 0;
+struct Packet sendDat = {0xAA,0,0,333};
+uint16_t address = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -63,26 +70,10 @@ int crcCheck();
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-struct Packet{
-uint8_t preamble;
-uint16_t receiverAdress,senderAdress, payload;
-};
-struct CrcPacket{
-	struct Packet data;
-	uint32_t crcVal;
-};
 
-uint8_t UART1_rxBuffer[sizeof(struct CrcPacket)] = {0};
-uint8_t LfCr[4]={0,0,10,13};
-uint16_t adcVal = 0;
-struct CrcPacket* recvPacket;
-struct Packet sendDat = {0xAA,0,0,333};
-volatile uint16_t address = 0;
-volatile uint32_t crcAct = 0;
-volatile int crcChecks = 0;
+
+
 //Flags
-int sendAddrF = 0;
-volatile int messRecvF = 0;
 /* USER CODE END 0 */
 
 /**
@@ -120,10 +111,8 @@ for(int i = 0; i <(sizeof(struct CrcPacket)); i++){
   MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
   HAL_HalfDuplex_Init(&huart3);
-  HAL_HalfDuplex_EnableTransmitter(&huart3);
-  HAL_Delay(500);
+  __HAL_UART_ENABLE_IT(&huart3, UART_IT_RXNE);
   HAL_HalfDuplex_EnableReceiver(&huart3);
-  HAL_UART_Receive_IT (&huart3, UART1_rxBuffer, sizeof(UART1_rxBuffer));
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, 1);
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 1);
 
@@ -136,33 +125,42 @@ for(int i = 0; i <(sizeof(struct CrcPacket)); i++){
   {
 	  switch(state){
 	  case INITIAL:
-		  if((sendAddrF==0)&&(address!=0)){
-		  	 		 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, 1);
-		  	 		 sendDat.receiverAdress = address+1;
-		  	 		 sendDat.senderAdress = address;
-		  	 		 HAL_Delay(200);
-		  	 		 sendPacket(sendDat);
-		  	 		 state = IDLE;
-		  	 		 sendAddrF = 1;
-		  	 	  }
+		  if(recv_flag){
+			  if((address==0)&&(recv_message.data.payload==322)){
+				  address = recv_message.data.receiverAddress;
+				  sendDat.payload = recv_message.data.payload;
+				  recv_flag = 0;
+				  sendDat.receiverAddress = address + 1;
+				  sendDat.senderAddress = address;
+				  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_11, 1);
+				  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
+				  HAL_Delay(200);
+				  sendPacket(sendDat);
+				  state = IDLE;
+			  }
+		  }
+
 		  break;
 	  case IDLE:
-		  if(messRecvF==1){
-		  HAL_ADC_Start(&hadc1);
-		  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
-		  adcVal = HAL_ADC_GetValue(&hadc1);
-		  sendDat.receiverAdress = 1;
-		  sendDat.senderAdress = address;
-		  sendDat.payload = adcVal;
-		  sendPacket(sendDat);
-		  messRecvF = 0;
+		  if(recv_flag){
+			  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+			  if(recv_message.data.receiverAddress==address){
+				  HAL_ADC_Start(&hadc1);
+				  HAL_ADC_PollForConversion(&hadc1, HAL_MAX_DELAY);
+				  adcVal = HAL_ADC_GetValue(&hadc1);
+				  sendDat.receiverAddress = 1;
+				  sendDat.senderAddress = address;
+				  sendDat.payload = adcVal;
+				  sendPacket(sendDat);
+				  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_14);
+			  }
+			  recv_flag = 0;
 		  }
 		  break;
 	  case ARMED:
 	  	  break;
 	  default: break;
 	  }
-	 // HAL_UART_Receive(&huart1, UART1_rxBuffer, sizeof(struct CrcPacket)*3, -1);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -357,33 +355,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-	recvPacket = (struct CrcPacket*)&UART1_rxBuffer[0];
-	crcChecks = crcChecks + crcCheck(*recvPacket);
-	if(crcCheck(*recvPacket)==1){
-	if((state==INITIAL)&&(address==0)){
-		address = recvPacket->data.receiverAdress;
 
-		crcAct = HAL_CRC_Calculate(&hcrc, (uint32_t*)&recvPacket->data, 2);
-		HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, 0);
-	}
-	else if((state==IDLE)&&(recvPacket->data.receiverAdress==address)){
-		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_14);
-		if(messRecvF==0)
-			messRecvF = 1;
-	}
-
-
-	}
-	/*LfCr[0]= (uint16_t)strDat->receiverAdress;
-	LfCr[1]= (uint16_t)strDat->senderAdress;
-	CDC_Transmit_FS(LfCr,sizeof(LfCr)); */
-    HAL_UART_Receive_IT(&huart3, UART1_rxBuffer, sizeof(UART1_rxBuffer));
-
-
-}
 void sendPacket(struct Packet p){
 	struct CrcPacket msg = {p, HAL_CRC_Calculate(&hcrc, (uint32_t*) &p, sizeof(p)/4)};
 	HAL_HalfDuplex_EnableTransmitter(&huart3);

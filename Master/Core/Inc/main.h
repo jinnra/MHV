@@ -59,7 +59,18 @@ void Error_Handler(void);
 
 /* Private defines -----------------------------------------------------------*/
 /* USER CODE BEGIN Private defines */
+struct Packet{
+uint8_t preamble;
+uint16_t receiverAddress,senderAddress, payload;
+};
+struct CrcPacket{
+	struct Packet data;
+	uint32_t crcVal;
+};
 
+int crcCheck(struct CrcPacket);
+
+#define FRAMELENGTH sizeof(struct CrcPacket)
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
