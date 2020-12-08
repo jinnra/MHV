@@ -209,35 +209,31 @@ void USART3_IRQHandler(void)
 {
   /* USER CODE BEGIN USART3_IRQn 0 */
 	 /* USER CODE BEGIN USART3_IRQn 0 */
-		uint8_t rbyte;
+	uint8_t rbyte;
 		if((HAL_GetTick() - timestamp)>100)
 			recv_cnt = 0;
-		 while (USART3->SR & UART_IT_RXNE) {
+		//Receive char while  Status Register for RX_Not_Empty flag is true.
+		while (USART3->SR & UART_IT_RXNE) {
 			 rbyte = huart3.Instance->DR;
-			 if(recv_cnt == 0){
-				 if(rbyte == 0xAA){
-					 UART1_rxBuffer[recv_cnt] = rbyte;
+			 UART1_rxBuffer[recv_cnt] = rbyte;
+
+			 //
+			 if(recv_cnt != 0 || rbyte == 0xAA)
 					 recv_cnt++;
-				 }
-			 }
-			 else if(recv_cnt < (FRAMELENGTH - 1)){
-				 UART1_rxBuffer[recv_cnt] = rbyte;
-				 recv_cnt++;
-			 }
-			 else {
-				 UART1_rxBuffer[recv_cnt] = rbyte;
+
+			 if(recv_cnt >= FRAMELENGTH){
 				 recvPacket = (struct CrcPacket*)UART1_rxBuffer;
-				 if(crcCheck(*recvPacket)==1){
-					 if(recvPacket->data.senderAddress!=1){
-					 recv_message = (*recvPacket);
-					 recv_flag = 1;
-					 }
-				 }
 				 recv_cnt = 0;
+
+				 if(crcCheck(*recvPacket) == 1 && recvPacket->data.senderAddress != 1){
+					recv_message = (*recvPacket);
+				 	recv_flag = 1;
+				 	}
 			 }
 			 timestamp = HAL_GetTick();
 		 }
 		 return;
+
   /* USER CODE END USART3_IRQn 0 */
   HAL_UART_IRQHandler(&huart3);
   /* USER CODE BEGIN USART3_IRQn 1 */
